@@ -31,6 +31,7 @@ instance/
 *.db
 *.sqlite
 *.sqlite3
+<<<<<<< HEAD
 # PostgreSQL (if running locally)
 *.sql
 
@@ -38,6 +39,11 @@ instance/
 uploads/
 **/uploads/
 **/failed_attempts/
+=======
+
+# Uploads
+uploads/
+>>>>>>> 037ded2 (cursor go brrrr)
 
 # IDE
 .vscode/
@@ -50,5 +56,8 @@ uploads/
 .DS_Store
 Thumbs.db
 
+<<<<<<< HEAD
 .env
 photos
+=======
+>>>>>>> 037ded2 (cursor go brrrr)
