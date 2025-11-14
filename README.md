@@ -1,1 +1,86 @@
-# qr-face-gate-system
+# QR Face Gate System
+
+A Flask-based access control system that combines QR code identification with face recognition for secure user verification.
+
+## Features
+
+- **User Registration**: Add users with their face photos and generate unique QR codes
+- **QR Code Generation**: Long-term QR codes that identify users by ID
+- **Face Recognition**: Verify that a person's face matches the QR code owner
+- **Web Interface**: Easy-to-use web interface for all operations
+
+## Requirements
+
+- Python 3.7+
+- Webcam or camera for face capture (optional, can use file uploads)
+
+## Installation
+
+1. Install Python dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+2. Run the application:
+```bash
+python app.py
+```
+
+3. Open your browser and navigate to:
+```
+http://localhost:5000
+```
+
+## Usage
+
+### Adding a User
+
+1. Click "Add New User" on the home page
+2. Enter the user's full name
+3. Upload a clear photo of the user's face (JPG/PNG format)
+4. Click "Generate QR Code"
+5. The system will:
+   - Detect and encode the face
+   - Create a user record
+   - Generate a unique QR code
+   - Display the QR code for saving
+
+### Verifying Access
+
+1. Click "Verify Access" on the home page
+2. Enter the User ID from the QR code (or scan the QR code to get the ID)
+3. Upload or capture a photo of the person's face
+4. Click "Verify"
+5. The system will:
+   - Find the user associated with the QR code
+   - Compare the captured face with the stored face encoding
+   - Display whether access is granted or denied
+
+### Viewing All Users
+
+1. Click "View All Users" on the home page
+2. See a list of all registered users with their QR codes
+
+## Technical Details
+
+- **Database**: SQLite database (`users.db`) stores user information and face encodings
+- **Face Recognition**: Uses the `face_recognition` library (dlib-based)
+- **QR Codes**: Generated using the `qrcode` library
+- **Face Matching**: Uses Euclidean distance with a threshold of 0.6 (lower = stricter matching)
+
+## API Endpoints
+
+- `GET /` - Home page
+- `GET /add_user` - Add user form
+- `POST /add_user` - Create new user with face and QR code
+- `GET /verify` - Verification form
+- `POST /verify` - Verify QR code and face match
+- `GET /users` - List all users
+- `GET /qr_code/<user_id>` - Get QR code image for a user
+
+## Notes
+
+- Face images should contain only one face for best results
+- Good lighting and clear images improve recognition accuracy
+- The face matching threshold can be adjusted in `app.py` (currently 0.6)
+- QR codes are long-term and tied to user IDs in the database
