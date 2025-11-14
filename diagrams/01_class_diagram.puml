@@ -1,0 +1,69 @@
+@startuml Class_Diagram
+!theme plain
+skinparam classAttributeIconSize 0
+
+package "QR Face Gate System" {
+  
+  class User {
+    -id: Integer
+    -name: String
+    -face_encoding: Text
+    -qr_code_data: String
+    -created_at: DateTime
+    +__repr__(): String
+  }
+  
+  class FlaskApp {
+    -app: Flask
+    -db: SQLAlchemy
+    -config: dict
+    +index(): Response
+    +add_user(): Response
+    +verify(): Response
+    +list_users(): Response
+    +get_qr_code(user_id): Response
+  }
+  
+  class QRCodeGenerator {
+    +generate_qr_code(user_id): Image
+  }
+  
+  class FaceRecognitionService {
+    +load_image_file(file): ndarray
+    +face_encodings(image): List[ndarray]
+    +face_distance(known_encoding, unknown_encoding): float
+  }
+  
+  class DatabaseService {
+    +create_all()
+    +add(user)
+    +query()
+    +commit()
+  }
+}
+
+FlaskApp --> User : manages
+FlaskApp --> QRCodeGenerator : uses
+FlaskApp --> FaceRecognitionService : uses
+FlaskApp --> DatabaseService : uses
+DatabaseService --> User : stores
+
+note right of User
+  SQLAlchemy Model
+  Stores user information
+  and face encodings
+end note
+
+note right of QRCodeGenerator
+  Generates QR codes
+  containing user ID
+end note
+
+note right of FaceRecognitionService
+  Uses face_recognition
+  library for face
+  detection and matching
+end note
+
+@enduml
+

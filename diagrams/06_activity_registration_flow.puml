@@ -1,0 +1,32 @@
+@startuml Activity_Registration_Flow
+!theme plain
+start
+
+:User navigates to /add_user;
+:Display registration form;
+
+:User enters name;
+:User uploads face image;
+
+:Load image file;
+:Detect faces in image;
+
+if (Face detected?) then (no)
+  :Display error: "No face detected";
+  stop
+elseif (Multiple faces?) then (yes)
+  :Display error: "Multiple faces detected";
+  stop
+else (single face)
+  :Extract face encoding;
+  :Create User record with temporary qr_code_data;
+  :Get user ID from database;
+  :Update qr_code_data with user ID;
+  :Generate QR code image;
+  :Save user to database;
+  :Display QR code to user;
+  stop
+endif
+
+@enduml
+
