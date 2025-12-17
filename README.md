@@ -16,9 +16,26 @@ A Flask-based access control system that combines QR code identification with fa
 
 ## Installation
 
+### Option 1: Docker (Recommended)
+
+1. Build and run with Docker Compose:
+```bash
+docker-compose up -d
+# Windows users with Docker Desktop 4.x+: use "docker compose" (no hyphen)
+```
+
+2. Access the application at: http://localhost:5000
+
+See [DOCKER.md](DOCKER.md) for detailed Docker instructions.
+
+**Note:** On Windows with Docker Desktop 4.x+, use `docker compose` instead of `docker-compose`.
+
+### Option 2: Local Installation
+
 1. Install Python dependencies:
 ```bash
 pip install -r requirements.txt
+pip install git+https://github.com/ageitgey/face_recognition_models
 ```
 
 2. Run the application:
@@ -63,7 +80,7 @@ http://localhost:5000
 
 ## Technical Details
 
-- **Database**: SQLite database (`users.db`) stores user information and face encodings
+- **Database**: PostgreSQL database stores user information and face encodings
 - **Face Recognition**: Uses the `face_recognition` library (dlib-based)
 - **QR Codes**: Generated using the `qrcode` library
 - **Face Matching**: Uses Euclidean distance with a threshold of 0.6 (lower = stricter matching)
