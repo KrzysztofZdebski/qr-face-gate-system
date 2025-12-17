@@ -11,7 +11,15 @@ from datetime import datetime
 import json
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
+# PostgreSQL database configuration
+# Use environment variables with defaults for Docker Compose
+db_user = os.getenv('POSTGRES_USER', 'qrfaceuser')
+db_password = os.getenv('POSTGRES_PASSWORD', 'qrfacepass')
+db_name = os.getenv('POSTGRES_DB', 'qrfacegate')
+db_host = os.getenv('POSTGRES_HOST', 'localhost')
+db_port = os.getenv('POSTGRES_PORT', '5432')
+
+app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
@@ -35,7 +43,20 @@ class User(db.Model):
 
 # Initialize database
 with app.app_context():
-    db.create_all()
+    try:
+        db.create_all()
+    except Exception as e:
+        print(f"Error creating database: {e}")
+        print(f"Database URI: {app.config['SQLALCHEMY_DATABASE_URI'].split('@')[1] if '@' in app.config['SQLALCHEMY_DATABASE_URI'] else 'N/A'}")
+        import time
+        print("Waiting for database to be ready...")
+        time.sleep(2)
+        # Retry once
+        try:
+            db.create_all()
+        except Exception as e2:
+            print(f"Retry failed: {e2}")
+            raise
 
 
 def generate_qr_code(user_id):

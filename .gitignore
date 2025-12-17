@@ -32,6 +32,7 @@ instance/
 *.sqlite
 *.sqlite3
 <<<<<<< HEAD
+<<<<<<< HEAD
 # PostgreSQL (if running locally)
 *.sql
 
@@ -40,6 +41,10 @@ uploads/
 **/uploads/
 **/failed_attempts/
 =======
+=======
+# PostgreSQL (if running locally)
+*.sql
+>>>>>>> a1d16cc (docker setup + moving from sqlite to postgresql)
 
 # Uploads
 uploads/
