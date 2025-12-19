@@ -1,5 +1,4 @@
 import sys
-from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify, send_file
 from flask_sqlalchemy import SQLAlchemy
 import qrcode
@@ -14,8 +13,11 @@ import json
 from initialize_functions import initialize_db,initialize_route
 from config.config import get_config
 
+template_dir = os.path.abspath('templates')
+static_dir = os.path.abspath('static')
+app = Flask(__name__,template_folder= template_dir, static_folder=static_dir)
 
-app = Flask(__name__,template_folder= '../../templates', static_folder='../../static')
+# app = Flask(__name__,template_folder= '../../templates', static_folder='../../static')
 # app = Flask(__name__,template_folder= '../../templates')
 
 
