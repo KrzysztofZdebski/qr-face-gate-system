@@ -11,7 +11,7 @@ import numpy as np
 import os
 from datetime import datetime
 import json
-from initialize_functions import initialize_db
+from initialize_functions import initialize_db,initialize_route
 from config.config import get_config
 
 
@@ -22,6 +22,7 @@ app = Flask(__name__,template_folder= '../../templates')
 app.config.from_object(get_config())
 
 initialize_db(app)
+initialize_route(app)
 # PostgreSQL database configuration
 # Use environment variables with defaults for Docker Compose
 # db_user = os.getenv('POSTGRES_USER', 'qrfaceuser')
