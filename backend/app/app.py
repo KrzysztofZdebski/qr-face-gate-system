@@ -15,8 +15,8 @@ from initialize_functions import initialize_db,initialize_route
 from config.config import get_config
 
 
-# app = Flask(__name__,template_folder= '../../templates', static_folder='../../static')
-app = Flask(__name__,template_folder= '../../templates')
+app = Flask(__name__,template_folder= '../../templates', static_folder='../../static')
+# app = Flask(__name__,template_folder= '../../templates')
 
 
 app.config.from_object(get_config())

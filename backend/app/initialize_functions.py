@@ -1,9 +1,11 @@
 from flask import Flask
-from db.db import db
 
 def initialize_db(app: Flask):
+    from db.db import db
+    from db.models import User
     with app.app_context():
         try:
+            
             db.init_app(app)
             db.create_all()
             print("Sukces! Tabele utworzone.")

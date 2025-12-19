@@ -1,7 +1,7 @@
 import qrcode
 
 class QRCodeController:
-    def generate_qr_code(user_id):
+    def generate_qr_code(self,user_id):
         """Generate a QR code for a user ID"""
         qr = qrcode.QRCode(
             version=1,
