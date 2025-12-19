@@ -53,6 +53,9 @@ input[type="text"]:focus {
 }
 
 .btn {
+    display: block;
+    text-align: center;
+    text-decoration: none;
     padding: 15px 30px;
     font-size: 1.1em;
     border: none;
