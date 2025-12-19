@@ -1,86 +1,23 @@
-from flask import Flask, render_template, request, jsonify, send_file
-from flask_sqlalchemy import SQLAlchemy
-import qrcode
+from flask import Blueprint, render_template, request, jsonify, send_file
 import io
 import base64
-import face_recognition
-import cv2
-import numpy as np
-import os
-from datetime import datetime
 import json
+import numpy as np
+import face_recognition
+from app.db.db import db
+from app.db.models import User
+from  .controller import QRCodeController
 
-app = Flask(__name__)
-# PostgreSQL database configuration
-# Use environment variables with defaults for Docker Compose
-db_user = os.getenv('POSTGRES_USER', 'qrfaceuser')
-db_password = os.getenv('POSTGRES_PASSWORD', 'qrfacepass')
-db_name = os.getenv('POSTGRES_DB', 'qrfacegate')
-db_host = os.getenv('POSTGRES_HOST', 'localhost')
-db_port = os.getenv('POSTGRES_PORT', '5432')
+qrCodeController = QRCodeController()
+base_bp = Blueprint = Blueprint("base", __name__)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
-
-db = SQLAlchemy(app)
-
-# Create uploads directory if it doesn't exist
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-
-
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    face_encoding = db.Column(db.Text, nullable=False)  # JSON string of face encoding
-    qr_code_data = db.Column(db.String(200), unique=True, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    def __repr__(self):
-        return f'<User {self.name}>'
-
-
-# Initialize database
-with app.app_context():
-    try:
-        db.create_all()
-    except Exception as e:
-        print(f"Error creating database: {e}")
-        print(f"Database URI: {app.config['SQLALCHEMY_DATABASE_URI'].split('@')[1] if '@' in app.config['SQLALCHEMY_DATABASE_URI'] else 'N/A'}")
-        import time
-        print("Waiting for database to be ready...")
-        time.sleep(2)
-        # Retry once
-        try:
-            db.create_all()
-        except Exception as e2:
-            print(f"Retry failed: {e2}")
-            raise
-
-
-def generate_qr_code(user_id):
-    """Generate a QR code for a user ID"""
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=10,
-        border=4,
-    )
-    qr.add_data(str(user_id))
-    qr.make(fit=True)
-    
-    img = qr.make_image(fill_color="black", back_color="white")
-    return img
-
-
-@app.route('/')
+@base_bp.route('/')
 def index():
     """Main page"""
     return render_template('index.html')
 
 
-@app.route('/add_user', methods=['GET', 'POST'])
+@base_bp.route('/add_user', methods=['GET', 'POST'])
 def add_user():
     """Add a new user with face and generate QR code"""
     if request.method == 'GET':
@@ -123,7 +60,7 @@ def add_user():
     db.session.commit()
     
     # Generate QR code image
-    qr_img = generate_qr_code(new_user.id)
+    qr_img = qrCodeController.generate_qr_code(new_user.id)
     
     # Convert QR code to base64 for display
     img_buffer = io.BytesIO()
@@ -139,11 +76,11 @@ def add_user():
     })
 
 
-@app.route('/qr_code/<int:user_id>')
+@base_bp.route('/qr_code/<int:user_id>')
 def get_qr_code(user_id):
     """Get QR code image for a user"""
     user = User.query.get_or_404(user_id)
-    qr_img = generate_qr_code(user.id)
+    qr_img = qrCodeController.generate_qr_code(user.id)
     
     img_buffer = io.BytesIO()
     qr_img.save(img_buffer, format='PNG')
@@ -152,7 +89,7 @@ def get_qr_code(user_id):
     return send_file(img_buffer, mimetype='image/png')
 
 
-@app.route('/verify', methods=['GET', 'POST'])
+@base_bp.route('/verify', methods=['GET', 'POST'])
 def verify():
     """Verify QR code and face match"""
     if request.method == 'GET':
@@ -195,13 +132,9 @@ def verify():
     })
 
 
-@app.route('/users')
+@base_bp.route('/users')
 def list_users():
     """List all users"""
     users = User.query.all()
     return render_template('users.html', users=users)
-
-
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
 
