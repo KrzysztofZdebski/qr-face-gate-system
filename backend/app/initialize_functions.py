@@ -19,3 +19,6 @@ def initialize_db(app: Flask):
             except Exception as e2:
                 print(f"Retry failed: {e2}")
                 raise
+def initialize_route(app:Flask):
+    from modules.routes import base_bp
+    app.register_blueprint(base_bp)

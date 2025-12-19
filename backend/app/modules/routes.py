@@ -4,16 +4,17 @@ import base64
 import json
 import numpy as np
 import face_recognition
-from app.db.db import db
-from app.db.models import User
+from db.db import db
+from db.models import User
 from  .controller import QRCodeController
 
 qrCodeController = QRCodeController()
-base_bp = Blueprint = Blueprint("base", __name__)
+base_bp = Blueprint("base", __name__)
 
 @base_bp.route('/')
 def index():
     """Main page"""
+    print("Index route")
     return render_template('index.html')
 
 
