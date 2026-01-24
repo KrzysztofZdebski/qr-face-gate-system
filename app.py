@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 import qrcode
 import io
@@ -9,6 +9,7 @@ import numpy as np
 import os
 from datetime import datetime
 import json
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 # PostgreSQL database configuration
@@ -23,6 +24,10 @@ app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{db_user}:{db_password}@{
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+
+# Admin password - change this or set via environment variable
+ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'admin123')
 
 db = SQLAlchemy(app)
 
@@ -39,6 +44,18 @@ class User(db.Model):
 
     def __repr__(self):
         return f'<User {self.name}>'
+
+
+class AccessLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    success = db.Column(db.Boolean, nullable=False)
+    face_distance = db.Column(db.Float, nullable=True)
+    user = db.relationship('User', backref=db.backref('access_logs', lazy=True))
+
+    def __repr__(self):
+        return f'<AccessLog user={self.user_id} success={self.success}>'
 
 
 # Initialize database
@@ -83,6 +100,9 @@ def index():
 @app.route('/add_user', methods=['GET', 'POST'])
 def add_user():
     """Add a new user with face and generate QR code"""
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin_login'))
+    
     if request.method == 'GET':
         return render_template('add_user.html')
     
@@ -186,6 +206,11 @@ def verify():
     face_distance = face_recognition.face_distance([stored_face_encoding], captured_face_encoding)[0]
     match = face_distance < 0.6  # Threshold for face matching (lower = stricter)
     
+    # Log the access attempt
+    access_log = AccessLog(user_id=user.id, success=bool(match), face_distance=float(face_distance))
+    db.session.add(access_log)
+    db.session.commit()
+    
     return jsonify({
         'match': bool(match),
         'face_distance': float(face_distance),
@@ -198,8 +223,67 @@ def verify():
 @app.route('/users')
 def list_users():
     """List all users"""
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin_login'))
     users = User.query.all()
     return render_template('users.html', users=users)
+
+
+@app.route('/admin', methods=['GET', 'POST'])
+def admin_login():
+    """Admin login page"""
+    if request.method == 'POST':
+        password = request.form.get('password')
+        if password == ADMIN_PASSWORD:
+            session['admin_logged_in'] = True
+            return redirect(url_for('admin_dashboard'))
+        else:
+            return render_template('admin_login.html', error='Invalid password')
+    return render_template('admin_login.html')
+
+
+@app.route('/admin/dashboard')
+def admin_dashboard():
+    """Admin dashboard"""
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin_login'))
+    
+    # Get statistics
+    total_users = User.query.count()
+    total_access_attempts = AccessLog.query.count()
+    successful_accesses = AccessLog.query.filter_by(success=True).count()
+    recent_logs = AccessLog.query.order_by(AccessLog.timestamp.desc()).limit(50).all()
+    
+    return render_template('admin_dashboard.html', 
+                         total_users=total_users,
+                         total_access_attempts=total_access_attempts,
+                         successful_accesses=successful_accesses,
+                         recent_logs=recent_logs)
+
+
+@app.route('/admin/logout')
+def admin_logout():
+    """Admin logout"""
+    session.pop('admin_logged_in', None)
+    return redirect(url_for('index'))
+
+
+@app.route('/delete_user/<int:user_id>', methods=['POST'])
+def delete_user(user_id):
+    """Delete a user (admin only)"""
+    if not session.get('admin_logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    user = User.query.get_or_404(user_id)
+    
+    # Delete associated access logs first
+    AccessLog.query.filter_by(user_id=user_id).delete()
+    
+    # Delete the user
+    db.session.delete(user)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': f'User {user.name} deleted successfully'})
 
 
 if __name__ == '__main__':
