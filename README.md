@@ -24,12 +24,18 @@ pip install -r requirements.txt
 pip install git+https://github.com/ageitgey/face_recognition_models
 ```
 
-2. Run the application:
+2. Start PostgreSQL database:
+```bash
+docker-compose up -d db
+# Windows users with Docker Desktop 4.x+: use "docker compose" (no hyphen)
+```
+
+3. Run the application:
 ```bash
 python app.py
 ```
 
-3. Open your browser and navigate to:
+4. Open your browser and navigate to:
 ```
 http://localhost:5000
 ```
