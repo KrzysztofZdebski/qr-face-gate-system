@@ -268,6 +268,19 @@ def admin_logout():
     return redirect(url_for('index'))
 
 
+@app.route('/reports')
+def reports():
+    """View access reports"""
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin_login'))
+    # Get all access logs with user info
+    logs = AccessLog.query.join(User, AccessLog.user_id == User.id)\
+        .add_columns(User.name, AccessLog.timestamp, AccessLog.success, AccessLog.image_path)\
+        .order_by(AccessLog.timestamp.desc()).all()
+    
+    return render_template('reports.html', logs=logs)
+
+
 @app.route('/delete_user/<int:user_id>', methods=['POST'])
 def delete_user(user_id):
     """Delete a user (admin only)"""

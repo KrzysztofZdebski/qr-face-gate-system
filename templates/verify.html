@@ -5,3 +5,57 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Verify Access - QR Face Gate System</title>
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <link rel="stylesheet" href="/static/css/verify.css">
+
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Verify Access</h1>
+        
+        <div class="info">
+            <h3>How to verify:</h3>
+            <ol style="text-align: left; margin-left: 20px;">
+                <li>Scan or enter the QR code data (User ID)</li>
+                <li>Capture or upload a photo of the person's face</li>
+                <li>Click "Verify" to check if the face matches the QR code owner</li>
+            </ol>
+        </div>
+        
+        <form id="verifyForm" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="qr_code_data">QR Code Data (User ID):</label>
+                <input type="text" id="qr_code_data" name="qr_code_data" placeholder="Enter User ID from QR code or scan QR code" required>
+                <button type="button" class="scan-button" id="scanQRBtn">📷 Scan QR Code</button>
+                <div class="qr-scanner" id="qrScanner" style="display: none;">
+                    <div id="qr-reader"></div>
+                    <button type="button" class="scan-button stop" id="stopScanBtn" style="display: none;">Stop Scanning</button>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="face_image">Face Image (JPG/PNG):</label>
+                <input type="file" id="face_image" name="face_image" accept="image/*" required>
+                <button type="button" class="scan-button" id="captureFaceBtn" style="margin-top: 10px;">📷 Capture Face from Camera</button>
+                <div class="camera-preview" id="cameraPreview" style="display: none;">
+                    <video id="faceVideo" autoplay playsinline style="width: 100%; max-width: 500px; display: block; margin: 0 auto;"></video>
+                    <canvas id="faceCanvas" style="display: none;"></canvas>
+                    <button type="button" class="scan-button" id="captureBtn" style="margin: 10px;">Capture Photo</button>
+                    <button type="button" class="scan-button stop" id="stopCameraBtn" style="margin: 10px;">Stop Camera</button>
+                </div>
+                <div class="preview" id="preview"></div>
+            </div>
+            
+            <div class="error" id="error"></div>
+            
+            <button type="submit" class="btn btn-primary">Verify Access</button>
+            <a href="/" class="btn btn-secondary">Back to Home</a>
+        </form>
+        
+        <div class="result" id="result">
+            <h3 id="resultTitle"></h3>
+            <p id="resultMessage"></p>
+        </div>
+    </div>
+    <script src="/static/js/verify.js"></script>    
+</body>
+</html>
