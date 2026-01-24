@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entry Reports - QR Face Gate System</title>
+    <link rel="stylesheet" href="/static/css/reports.css">
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Entry Attempts Report</h1>
+        <a href="/" class="btn btn-secondary">← Back to Home</a>
+        
+        {% if attempts %}
+        <div class="stats">
+            <div class="stat-card success">
+                <div class="stat-number">{{ successful_attempts }}</div>
+                <div class="stat-label">Successful</div>
+            </div>
+            <div class="stat-card failed">
+                <div class="stat-number">{{ failed_attempts }}</div>
+                <div class="stat-label">Failed</div>
+            </div>
+            <div class="stat-card total">
+                <div class="stat-number">{{ total_attempts }}</div>
+                <div class="stat-label">Total Attempts</div>
+            </div>
+        </div>
+        
+        <table class="reports-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Timestamp</th>
+                    <th>QR Code</th>
+                    <th>User</th>
+                    <th>Status</th>
+                    <th>Face Distance</th>
+                    <th>Failure Message</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for attempt in attempts %}
+                <tr class="{% if attempt.success %}success-row{% else %}failed-row{% endif %}">
+                    <td>{{ attempt.id }}</td>
+                    <td>{{ attempt.attempted_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    <td>{{ attempt.qr_code_data or 'N/A' }}</td>
+                    <td>
+                        {% if attempt.user_name %}
+                            {{ attempt.user_name }} (ID: {{ attempt.user_id }})
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="status-badge {% if attempt.success %}success-badge{% else %}failed-badge{% endif %}">
+                            {% if attempt.success %}✓ SUCCESS{% else %}✗ FAILED{% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        {% if attempt.face_distance is not none %}
+                            {{ "%.4f"|format(attempt.face_distance) }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </td>
+                    <td class="failure-message">
+                        {% if attempt.failure_message %}
+                            <span class="error-text">{{ attempt.failure_message }}</span>
+                        {% else %}
+                            <span class="success-text">Access granted</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <h3>No entry attempts found</h3>
+            <p>Entry attempts will appear here once users start trying to access the system.</p>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

@@ -5,7 +5,7 @@ import json
 import numpy as np
 import face_recognition
 from db.db import db
-from db.models import User
+from db.models import User, EntryAttempt
 from  .controller import QRCodeController
 
 qrCodeController = QRCodeController()
@@ -96,41 +96,117 @@ def verify():
     if request.method == 'GET':
         return render_template('verify.html')
     
-    if 'qr_code_data' not in request.form or 'face_image' not in request.files:
-        return jsonify({'error': 'QR code data and face image are required'}), 400
+    # Initialize variables for logging
+    qr_code_data = None
+    user = None
+    face_distance = None
+    failure_message = None
+    success = False
     
-    qr_code_data = request.form['qr_code_data']
-    face_image = request.files['face_image']
+    try:
+        # Check if required fields are present
+        if 'qr_code_data' not in request.form or 'face_image' not in request.files:
+            failure_message = 'QR code data and face image are required'
+            attempt = EntryAttempt(
+                qr_code_data=None,
+                user_id=None,
+                user_name=None,
+                success=False,
+                failure_message=failure_message,
+                face_distance=None
+            )
+            db.session.add(attempt)
+            db.session.commit()
+            return jsonify({'error': failure_message}), 400
+        
+        qr_code_data = request.form['qr_code_data']
+        face_image = request.files['face_image']
+        
+        # Find user by QR code data
+        user = User.query.filter_by(qr_code_data=qr_code_data).first()
+        if not user:
+            failure_message = 'User not found for this QR code'
+            attempt = EntryAttempt(
+                qr_code_data=qr_code_data,
+                user_id=None,
+                user_name=None,
+                success=False,
+                failure_message=failure_message,
+                face_distance=None
+            )
+            db.session.add(attempt)
+            db.session.commit()
+            return jsonify({'error': failure_message}), 404
+        
+        # Load and process the face image
+        image = face_recognition.load_image_file(face_image)
+        face_encodings = face_recognition.face_encodings(image)
+        
+        if len(face_encodings) == 0:
+            failure_message = 'No face detected in the image'
+            attempt = EntryAttempt(
+                qr_code_data=qr_code_data,
+                user_id=user.id,
+                user_name=user.name,
+                success=False,
+                failure_message=failure_message,
+                face_distance=None
+            )
+            db.session.add(attempt)
+            db.session.commit()
+            return jsonify({'error': failure_message}), 400
+        
+        # Get the first face encoding
+        captured_face_encoding = face_encodings[0]
+        
+        # Load the stored face encoding
+        stored_face_encoding = np.array(json.loads(user.face_encoding))
+        
+        # Compare faces
+        face_distance = face_recognition.face_distance([stored_face_encoding], captured_face_encoding)[0]
+        match = face_distance < 0.6  # Threshold for face matching (lower = stricter)
+        
+        if match:
+            success = True
+            failure_message = None
+        else:
+            success = False
+            failure_message = f'Face mismatch: distance {face_distance:.4f} exceeds threshold 0.6'
+        
+        # Log the attempt
+        attempt = EntryAttempt(
+            qr_code_data=qr_code_data,
+            user_id=user.id,
+            user_name=user.name,
+            success=success,
+            failure_message=failure_message,
+            face_distance=float(face_distance)
+        )
+        db.session.add(attempt)
+        db.session.commit()
+        
+        return jsonify({
+            'match': bool(match),
+            'face_distance': float(face_distance),
+            'user_name': user.name,
+            'user_id': user.id,
+            'threshold': 0.6
+        })
     
-    # Find user by QR code data
-    user = User.query.filter_by(qr_code_data=qr_code_data).first()
-    if not user:
-        return jsonify({'error': 'User not found for this QR code'}), 404
-    
-    # Load and process the face image
-    image = face_recognition.load_image_file(face_image)
-    face_encodings = face_recognition.face_encodings(image)
-    
-    if len(face_encodings) == 0:
-        return jsonify({'error': 'No face detected in the image'}), 400
-    
-    # Get the first face encoding
-    captured_face_encoding = face_encodings[0]
-    
-    # Load the stored face encoding
-    stored_face_encoding = np.array(json.loads(user.face_encoding))
-    
-    # Compare faces
-    face_distance = face_recognition.face_distance([stored_face_encoding], captured_face_encoding)[0]
-    match = face_distance < 0.6  # Threshold for face matching (lower = stricter)
-    
-    return jsonify({
-        'match': bool(match),
-        'face_distance': float(face_distance),
-        'user_name': user.name,
-        'user_id': user.id,
-        'threshold': 0.6
-    })
+    except Exception as e:
+        # Log any unexpected errors
+        failure_message = f'Unexpected error: {str(e)}'
+        attempt = EntryAttempt(
+            qr_code_data=qr_code_data,
+            user_id=user.id if user else None,
+            user_name=user.name if user else None,
+            success=False,
+            failure_message=failure_message,
+            face_distance=face_distance
+        )
+        db.session.add(attempt)
+        db.session.commit()
+        return jsonify({'error': failure_message}), 500
 
 
 @base_bp.route('/users')
@@ -138,4 +214,21 @@ def list_users():
     """List all users"""
     users = User.query.all()
     return render_template('users.html', users=users)
+
+
+@base_bp.route('/reports')
+def reports():
+    """Display all entry attempts"""
+    attempts = EntryAttempt.query.order_by(EntryAttempt.attempted_at.desc()).all()
+    
+    # Calculate statistics
+    total_attempts = len(attempts)
+    successful_attempts = sum(1 for attempt in attempts if attempt.success)
+    failed_attempts = total_attempts - successful_attempts
+    
+    return render_template('reports.html', 
+                         attempts=attempts,
+                         total_attempts=total_attempts,
+                         successful_attempts=successful_attempts,
+                         failed_attempts=failed_attempts)
 

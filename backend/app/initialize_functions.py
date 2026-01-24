@@ -2,7 +2,7 @@ from flask import Flask
 
 def initialize_db(app: Flask):
     from db.db import db
-    from db.models import User
+    from db.models import User, EntryAttempt  # Import EntryAttempt to ensure it's registered
     with app.app_context():
         try:
             

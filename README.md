@@ -32,7 +32,7 @@ docker-compose up -d db
 
 3. Run the application:
 ```bash
-python app.py
+python backend/app/app.py
 ```
 
 4. Open your browser and navigate to:
