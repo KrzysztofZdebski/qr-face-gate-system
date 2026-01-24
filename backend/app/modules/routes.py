@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, send_file, current_app
+from flask import Blueprint, render_template, request, jsonify, send_file, current_app, session, redirect, url_for
 import io
 import base64
 import json
@@ -15,6 +15,12 @@ from  .controller import QRCodeController
 
 qrCodeController = QRCodeController()
 base_bp = Blueprint("base", __name__)
+
+def require_admin():
+    """Helper function to check if user is logged in as admin"""
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('base.admin_login'))
+    return None
 
 def save_failed_attempt_image(face_image, attempt_id):
     """Save the face image from a failed attempt with security measures"""
@@ -92,6 +98,10 @@ def index():
 @base_bp.route('/add_user', methods=['GET', 'POST'])
 def add_user():
     """Add a new user with face and generate QR code"""
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
+    
     if request.method == 'GET':
         return render_template('add_user.html')
     
@@ -382,6 +392,9 @@ def verify():
 @base_bp.route('/users')
 def list_users():
     """List all users"""
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
     users = User.query.all()
     return render_template('users.html', users=users)
 
@@ -389,6 +402,9 @@ def list_users():
 @base_bp.route('/reports')
 def reports():
     """Display all entry attempts"""
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
     attempts = EntryAttempt.query.order_by(EntryAttempt.attempted_at.desc()).all()
     
     # Calculate statistics
@@ -434,4 +450,72 @@ def delete_attempt_image(attempt_id):
     print(f"[IMAGE_DELETION] Attempt ID: {attempt_id}, IP: {request.remote_addr}, Time: {datetime.utcnow().isoformat()}")
     
     return jsonify({'success': True, 'message': 'Image deleted successfully'})
+
+
+@base_bp.route('/admin', methods=['GET', 'POST'])
+def admin_login():
+    """Admin login page"""
+    if request.method == 'POST':
+        password = request.form.get('password')
+        admin_password = current_app.config.get('ADMIN_PASSWORD', 'admin123')
+        if password == admin_password:
+            session['admin_logged_in'] = True
+            return redirect(url_for('base.admin_dashboard'))
+        else:
+            return render_template('admin_login.html', error='Invalid password')
+    return render_template('admin_login.html')
+
+
+@base_bp.route('/admin/dashboard')
+def admin_dashboard():
+    """Admin dashboard"""
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
+    
+    # Get statistics using EntryAttempt model
+    total_users = User.query.count()
+    total_access_attempts = EntryAttempt.query.count()
+    successful_accesses = EntryAttempt.query.filter_by(success=True).count()
+    
+    # Get all attempts (like reports page)
+    attempts = EntryAttempt.query.order_by(EntryAttempt.attempted_at.desc()).all()
+    
+    # Calculate statistics
+    successful_attempts = sum(1 for attempt in attempts if attempt.success)
+    failed_attempts = total_access_attempts - successful_attempts
+    
+    return render_template('admin_dashboard.html', 
+                         total_users=total_users,
+                         total_access_attempts=total_access_attempts,
+                         successful_accesses=successful_accesses,
+                         attempts=attempts,
+                         successful_attempts=successful_attempts,
+                         failed_attempts=failed_attempts)
+
+
+@base_bp.route('/admin/logout')
+def admin_logout():
+    """Admin logout"""
+    session.pop('admin_logged_in', None)
+    return redirect(url_for('base.index'))
+
+
+@base_bp.route('/delete_user/<int:user_id>', methods=['POST'])
+def delete_user(user_id):
+    """Delete a user (admin only)"""
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
+    
+    user = User.query.get_or_404(user_id)
+    
+    # Delete associated entry attempts first
+    EntryAttempt.query.filter_by(user_id=user_id).delete()
+    
+    # Delete the user
+    db.session.delete(user)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': f'User {user.name} deleted successfully'})
 

@@ -15,6 +15,10 @@ class BaseConfig:
     UPLOAD_FOLDER = 'uploads'
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
     
+    # Security Settings
+    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+    ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'admin123')
+    
     # Data Protection Settings
     IMAGE_RETENTION_DAYS = int(os.getenv('IMAGE_RETENTION_DAYS', '90'))  # Default: 90 days (GDPR compliant)
     SECURE_FILE_NAMING = True  # Use hash-based filenames instead of predictable names

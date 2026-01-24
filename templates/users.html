@@ -28,12 +28,12 @@
                 {% for user in users %}
                 <tr>
                     <td class="qr-cell">
-                        <img src="{{ url_for('get_qr_code', user_id=user.id) }}" alt="QR Code" class="qr-code">
+                        <img src="{{ url_for('base.get_qr_code', user_id=user.id) }}" alt="QR Code" class="qr-code">
                     </td>
                     <td class="name-cell">{{ user.name }}</td>
                     <td class="actions-cell">
                         <button onclick="printQR({{ user.id }}, '{{ user.name }}')" class="btn btn-info btn-sm">🖨️ Print QR</button>
-                        <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this user?')">
+                        <form method="POST" action="{{ url_for('base.delete_user', user_id=user.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this user?')">
                             <button type="submit" class="btn btn-danger btn-sm">🗑️ Delete</button>
                         </form>
                     </td>
