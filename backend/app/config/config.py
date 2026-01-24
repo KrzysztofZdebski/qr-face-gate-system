@@ -14,6 +14,11 @@ class BaseConfig:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     UPLOAD_FOLDER = 'uploads'
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
+    
+    # Data Protection Settings
+    IMAGE_RETENTION_DAYS = int(os.getenv('IMAGE_RETENTION_DAYS', '90'))  # Default: 90 days (GDPR compliant)
+    SECURE_FILE_NAMING = True  # Use hash-based filenames instead of predictable names
+    LOG_IMAGE_ACCESS = True  # Log when images are accessed (for audit trail)
 def get_config():
     print("--- TEST ENV ---")
     print(f"User: {os.getenv('POSTGRES_USER')}")

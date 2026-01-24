@@ -34,8 +34,10 @@ instance/
 # PostgreSQL (if running locally)
 *.sql
 
-# Uploads
+# Uploads (contains personal data - must not be committed)
 uploads/
+**/uploads/
+**/failed_attempts/
 
 # IDE
 .vscode/

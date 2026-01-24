@@ -22,6 +22,7 @@ class EntryAttempt(db.Model):
     success = db.Column(db.Boolean, nullable=False)  # Whether access was granted
     failure_message = db.Column(db.Text, nullable=True)  # Error message if failed
     face_distance = db.Column(db.Float, nullable=True)  # Face distance if face was detected
+    image_path = db.Column(db.String(500), nullable=True)  # Path to saved image for failed attempts
     attempted_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     
     # Relationship to User
