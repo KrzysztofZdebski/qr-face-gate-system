@@ -23,6 +23,11 @@ app = Flask(__name__,template_folder= template_dir, static_folder=static_dir)
 
 app.config.from_object(get_config())
 
+# Make upload folder absolute
+if not os.path.isabs(app.config['UPLOAD_FOLDER']):
+    app_root = os.path.dirname(os.path.abspath(__file__))
+    app.config['UPLOAD_FOLDER'] = os.path.join(app_root, app.config['UPLOAD_FOLDER'])
+
 initialize_db(app)
 initialize_route(app)
 # PostgreSQL database configuration
