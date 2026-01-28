@@ -278,6 +278,23 @@ def verify():
             db.session.commit()
             return jsonify({'error': failure_message}), 404
         
+        # Check if user is frozen
+        user.unfreeze_if_expired()
+        if user.is_currently_frozen():
+            failure_message = f'User access is frozen until {user.frozen_until.strftime("%Y-%m-%d %H:%M:%S")}. Reason: {user.freeze_reason}'
+            attempt = EntryAttempt(
+                qr_code_data=qr_code_data,
+                user_id=user.id,
+                user_name=user.name,
+                success=False,
+                failure_message=failure_message,
+                face_distance=None,
+                image_path=None
+            )
+            db.session.add(attempt)
+            db.session.commit()
+            return jsonify({'error': failure_message, 'frozen': True, 'frozen_until': user.frozen_until.isoformat()}), 403
+        
         # Save a copy of the file content before processing (for potential failure logging)
         face_image.seek(0)
         file_content = face_image.read()
@@ -744,4 +761,69 @@ def delete_user(user_id):
     db.session.commit()
     
     return redirect(url_for('base.list_users'))
+
+
+@base_bp.route('/freeze_user/<int:user_id>', methods=['POST'])
+def freeze_user(user_id):
+    """Freeze user access for a specified period (admin only)"""
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
+    
+    user = User.query.get_or_404(user_id)
+    data = request.get_json()
+    
+    if not data or 'hours' not in data:
+        return jsonify({'error': 'Hours parameter is required'}), 400
+    
+    try:
+        hours = int(data['hours'])
+        if hours <= 0:
+            return jsonify({'error': 'Hours must be greater than 0'}), 400
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Hours must be a valid integer'}), 400
+    
+    reason = data.get('reason', 'No reason specified')
+    
+    # Calculate freeze until time
+    frozen_until = datetime.utcnow() + timedelta(hours=hours)
+    
+    # Update user
+    user.is_frozen = True
+    user.frozen_until = frozen_until
+    user.freeze_reason = reason
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': f'User {user.name} frozen until {frozen_until.strftime("%Y-%m-%d %H:%M:%S")}',
+        'user_id': user.id,
+        'frozen_until': frozen_until.isoformat(),
+        'reason': reason
+    })
+
+
+@base_bp.route('/unfreeze_user/<int:user_id>', methods=['POST'])
+def unfreeze_user(user_id):
+    """Unfreeze user access (admin only)"""
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
+    
+    user = User.query.get_or_404(user_id)
+    
+    # Unfreeze user
+    user.is_frozen = False
+    user.frozen_until = None
+    user.freeze_reason = None
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': f'User {user.name} unfrozen',
+        'user_id': user.id
+    })
+
 

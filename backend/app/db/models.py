@@ -8,9 +8,25 @@ class User(db.Model):
     face_encoding = db.Column(db.Text, nullable=False)  # JSON string of face encoding
     qr_code_data = db.Column(db.String(200), unique=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_frozen = db.Column(db.Boolean, default=False, nullable=False)  # Whether user access is frozen
+    frozen_until = db.Column(db.DateTime, nullable=True)  # Until when the user is frozen
+    freeze_reason = db.Column(db.String(500), nullable=True)  # Reason for freezing
 
     def __repr__(self):
         return f'<User {self.name}>'
+    
+    def is_currently_frozen(self):
+        """Check if user is currently frozen"""
+        if not self.is_frozen or self.frozen_until is None:
+            return False
+        return datetime.utcnow() < self.frozen_until
+    
+    def unfreeze_if_expired(self):
+        """Auto-unfreeze if the freeze period has expired"""
+        if self.is_frozen and self.frozen_until and datetime.utcnow() >= self.frozen_until:
+            self.is_frozen = False
+            self.frozen_until = None
+            self.freeze_reason = None
 
 
 class EntryAttempt(db.Model):
