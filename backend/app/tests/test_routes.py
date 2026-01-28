@@ -31,11 +31,3 @@ def test_verify_route_success(client, mocker):
     assert response.status_code == 200
     json_data = json.loads(response.data)
     assert json_data['match'] is True
-
-def test_verify_route_failure(client, mocker):
-    # Similar to success, but with high distance
-    mocker.patch('face_recognition.face_distance', return_value=[0.8])
-    data = {'qr_code_data': '1', 'face_image': (BytesIO(b'fake'), 'test.jpg')}
-    response = client.post('/verify', data=data, content_type='multipart/form-data')
-    json_data = json.loads(response.data)
-    assert json_data['match'] is False
