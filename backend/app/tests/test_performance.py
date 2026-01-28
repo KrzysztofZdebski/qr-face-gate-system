@@ -118,6 +118,7 @@ def test_face_verification_with_wrong_qr(client):
         if response.status_code == 200:
             json_data = json.loads(response.data)
             # Wrong face should not match
+            print(json_data.get('match',False))
             assert not json_data.get('match', False), "Wrong face should not match"
 
 def test_face_detection_required(client):
@@ -148,8 +149,9 @@ def test_face_detection_required(client):
     response = client.post('/verify', data=data, content_type='multipart/form-data')
     
     # Should fail because no face detected
-    assert response.status_code == 400 or response.status_code == 200
+    assert response.status_code != 200
     json_data = json.loads(response.data)
+    print(response.status_code)
     if response.status_code == 400:
         assert 'error' in json_data or 'No face detected' in str(json_data)
 
