@@ -13,6 +13,20 @@ from db.db import db
 from db.models import User, EntryAttempt
 from  .controller import QRCodeController
 
+# PDF generation for user reports
+try:
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.lib.utils import simpleSplit
+except ImportError:
+    A4 = None
+    canvas = None
+    pdfmetrics = None
+    TTFont = None
+    simpleSplit = None
+
 qrCodeController = QRCodeController()
 base_bp = Blueprint("base", __name__)
 
@@ -492,6 +506,166 @@ def admin_dashboard():
                          attempts=attempts,
                          successful_attempts=successful_attempts,
                          failed_attempts=failed_attempts)
+
+
+@base_bp.route('/admin/user/<int:user_id>/report')
+def user_report(user_id):
+    """Show all entry attempts for a specific user"""
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
+
+    user = User.query.get_or_404(user_id)
+    attempts = (
+        EntryAttempt.query
+        .filter_by(user_id=user_id)
+        .order_by(EntryAttempt.attempted_at.desc())
+        .all()
+    )
+
+    total_attempts = len(attempts)
+    successful_attempts = sum(1 for a in attempts if a.success)
+    failed_attempts = total_attempts - successful_attempts
+
+    return render_template(
+        'user_report.html',
+        user=user,
+        attempts=attempts,
+        total_attempts=total_attempts,
+        successful_attempts=successful_attempts,
+        failed_attempts=failed_attempts,
+    )
+
+
+@base_bp.route('/admin/user/<int:user_id>/report/pdf')
+def user_report_pdf(user_id):
+    """Download PDF report with all entry attempts for a specific user"""
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
+
+    user = User.query.get_or_404(user_id)
+    attempts = (
+        EntryAttempt.query
+        .filter_by(user_id=user_id)
+        .order_by(EntryAttempt.attempted_at.desc())
+        .all()
+    )
+
+    # If reportlab is not installed, return a clear error
+    if canvas is None or A4 is None:
+        return jsonify({
+            'error': 'PDF generation library (reportlab) is not installed. '
+                     'Install it with: pip install reportlab'
+        }), 500
+
+    buffer = io.BytesIO()
+
+    # Choose font that supports Polish characters (Windows Arial as default)
+    base_font = "Helvetica"
+    if pdfmetrics is not None and TTFont is not None:
+        try:
+            # This path should exist on standard Windows installations
+            arial_path = r"C:\Windows\Fonts\arial.ttf"
+            if os.path.exists(arial_path):
+                pdfmetrics.registerFont(TTFont("ArialPL", arial_path))
+                base_font = "ArialPL"
+        except Exception as font_err:
+            print(f"Could not register Arial font for PDF: {font_err}")
+
+    pdf = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+
+    # Header
+    y = height - 50
+    pdf.setFont(base_font, 16)
+    pdf.drawString(50, y, f"Raport wejść - {user.name} (ID: {user.id})")
+    y -= 25
+    pdf.setFont(base_font, 10)
+    pdf.drawString(50, y, f"Data wygenerowania: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+    y -= 25
+
+    # Summary
+    total_attempts = len(attempts)
+    successful_attempts = sum(1 for a in attempts if a.success)
+    failed_attempts = total_attempts - successful_attempts
+
+    pdf.drawString(50, y, f"Liczba wszystkich wejść: {total_attempts}")
+    y -= 15
+    pdf.drawString(50, y, f"Udane wejścia: {successful_attempts}")
+    y -= 15
+    pdf.drawString(50, y, f"Nieudane wejścia: {failed_attempts}")
+    y -= 25
+
+    pdf.setFont(base_font, 10)
+
+    margin_left = 50
+    margin_right = width - 50
+    margin_bottom = 60
+
+    def draw_header():
+        nonlocal y
+        pdf.setFont(base_font, 14)
+        pdf.drawString(margin_left, y, f"Raport wejść - {user.name} (ID: {user.id})")
+        y -= 25
+        pdf.setFont(base_font, 10)
+
+    # Raport ograniczony do jednej strony PDF – priorytet najnowszych wejść
+    # (pętla urywa się, gdy zabraknie miejsca na kolejne wpisy)
+
+    # Rows (one block per attempt: date + status, message)
+    for attempt in attempts:
+        # Jeśli brakuje miejsca na kolejny blok, kończymy (tylko jedna strona)
+        if y < margin_bottom + 60:
+            break
+
+        timestamp = attempt.attempted_at.strftime('%Y-%m-%d %H:%M:%S')
+        status = "SUKCES" if attempt.success else "BŁĄD"
+        message = attempt.failure_message or ""
+
+        # First line: date + status
+        pdf.setFont(base_font, 10)
+        pdf.drawString(margin_left, y, f"Data i godzina: {timestamp}")
+        pdf.drawString(margin_left + 260, y, f"Status: {status}")
+        y -= 14
+
+        # Message (wrapped)
+        if message:
+            pdf.setFont(base_font, 9)
+            available_width = margin_right - margin_left
+            if simpleSplit is not None:
+                lines = simpleSplit(message, base_font, 9, available_width)
+            else:
+                # Fallback: naive wrapping by chunks
+                max_chars = 90
+                lines = [message[i:i + max_chars] for i in range(0, len(message), max_chars)]
+
+            for line in lines:
+                if y < margin_bottom:
+                    new_page()
+                    pdf.setFont(base_font, 9)
+                pdf.drawString(margin_left, y, f"Komunikat: {line}" if line == lines[0] else f"           {line}")
+                y -= 12
+        else:
+            if y < margin_bottom:
+                new_page()
+            pdf.setFont(base_font, 9)
+            pdf.drawString(margin_left, y, "Komunikat: —")
+            y -= 12
+
+        # Spacer między próbami
+        y -= 10
+
+    pdf.save()
+    buffer.seek(0)
+
+    filename = f"raport_uzytkownik_{user.id}.pdf"
+    return send_file(
+        buffer,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=filename
+    )
 
 
 @base_bp.route('/admin/logout')

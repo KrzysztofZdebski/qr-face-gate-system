@@ -33,6 +33,7 @@
                     <td class="name-cell">{{ user.name }}</td>
                     <td class="actions-cell">
                         <button onclick="printQR({{ user.id }}, '{{ user.name }}')" class="btn btn-info btn-sm">🖨️ Print QR</button>
+                        <a href="{{ url_for('base.user_report', user_id=user.id) }}" class="btn btn-secondary btn-sm">📄 Raport wejść</a>
                         <form method="POST" action="{{ url_for('base.delete_user', user_id=user.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this user?')">
                             <button type="submit" class="btn btn-danger btn-sm">🗑️ Delete</button>
                         </form>
