@@ -24,23 +24,20 @@
                 <div class="preview" id="preview"></div>
             </div>
             
-            <div class="error" id="error"></div>
-            <div class="success" id="success"></div>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="{% if category == 'error' %}error{% else %}success{% endif %} show">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
             <div class="btn-container">
-                <button type="submit" class="btn btn-primary">Generate QR Code</button>
-                <a href="/" class="btn btn-secondary">Back to Home</a>
+                <button type="submit" class="btn btn-primary">Add User</button>
+                <a href="{{ url_for('base.list_users') }}" class="btn btn-secondary">Back to Users</a>
             </div>
         </form>
-        
-        <div class="qr-result" id="qrResult">
-            <h3>✅ User Added Successfully!</h3>
-            <p><strong>Name:</strong> <span id="userName"></span></p>
-            <p><strong>User ID:</strong> <span id="userId"></span></p>
-            <h4>Your QR Code:</h4>
-            <img id="qrImage" src="" alt="QR Code">
-            <p style="margin-top: 15px; color: #666;">Save this QR code for access verification</p>
-            <button onclick="printQRCode()" class="btn btn-secondary" style="margin-top: 15px;">🖨️ Print QR Code</button>
-        </div>
         <div class="bottom-actions">
             <a href="/admin/dashboard" class="btn btn-secondary btn-inline">← Back to Admin Dashboard</a>
         </div>
@@ -61,78 +58,6 @@
             }
         });
         
-        document.getElementById('addUserForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const formData = new FormData();
-            formData.append('name', document.getElementById('name').value);
-            formData.append('face_image', faceImageInput.files[0]);
-            
-            const errorDiv = document.getElementById('error');
-            const successDiv = document.getElementById('success');
-            const qrResult = document.getElementById('qrResult');
-            
-            errorDiv.classList.remove('show');
-            successDiv.classList.remove('show');
-            qrResult.classList.remove('show');
-            
-            try {
-                const response = await fetch('/add_user', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    document.getElementById('userName').textContent = data.name;
-                    document.getElementById('userId').textContent = data.user_id;
-                    document.getElementById('qrImage').src = data.qr_code;
-                    qrResult.classList.add('show');
-                    document.getElementById('addUserForm').reset();
-                    preview.innerHTML = '';
-                } else {
-                    errorDiv.textContent = data.error || 'An error occurred';
-                    errorDiv.classList.add('show');
-                }
-            } catch (error) {
-                errorDiv.textContent = 'Network error: ' + error.message;
-                errorDiv.classList.add('show');
-            }
-        });
-        
-        function printQRCode() {
-            const qrImage = document.getElementById('qrImage');
-            const userName = document.getElementById('userName').textContent;
-            const userId = document.getElementById('userId').textContent;
-            
-            const printWindow = window.open('', '_blank');
-            printWindow.document.write(`
-                <html>
-                <head>
-                    <title>QR Code - ${userName}</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
-                        .qr-container { margin: 20px auto; }
-                        .qr-container img { max-width: 300px; }
-                        .info { margin-top: 20px; }
-                    </style>
-                </head>
-                <body>
-                    <h1>QR Code for Access</h1>
-                    <div class="qr-container">
-                        <img src="${qrImage.src}" alt="QR Code">
-                    </div>
-                    <div class="info">
-                        <p><strong>Name:</strong> ${userName}</p>
-                        <p><strong>User ID:</strong> ${userId}</p>
-                    </div>
-                </body>
-                </html>
-            `);
-            printWindow.document.close();
-            printWindow.print();
-        }
     </script>
 </body>
 </html>

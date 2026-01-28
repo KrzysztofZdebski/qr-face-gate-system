@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edytuj użytkownika - {{ user.name }}</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 18px;
+            box-shadow: 0 18px 50px rgba(0,0,0,0.25);
+            padding: 30px 35px 35px;
+        }
+        h1 {
+            font-size: 1.6rem;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        label {
+            display: block;
+            font-size: 0.95rem;
+            margin-bottom: 4px;
+            color: #444;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 0.95rem;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 4px;
+        }
+        .buttons {
+            margin-top: 22px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            display: inline-block;
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            text-decoration: none;
+            transition: background 0.2s, transform 0.1s, box-shadow 0.1s;
+        }
+        .btn-primary {
+            background: #007bff;
+            color: #fff;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: #fff;
+        }
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+        .qr-preview {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .qr-preview img {
+            width: 180px;
+            height: 180px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            background: #fff;
+        }
+        .helper-text {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Edytuj użytkownika</h1>
+
+        {% if error %}
+            <p style="color: #dc3545; margin-bottom: 16px;">{{ error }}</p>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('base.edit_user', user_id=user.id) }}" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="name">Nazwa użytkownika</label>
+                <input type="text" id="name" name="name" value="{{ user.name }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="new_face_image">Nowe zdjęcie twarzy</label>
+                <input type="file" id="new_face_image" name="new_face_image" accept="image/*">
+                <p class="helper-text">
+                    Jeśli wybierzesz nowe zdjęcie, zostanie ono użyte do ponownego zapisania
+                    wzorca twarzy w systemie. Aktualne logi wejść zostaną zachowane.
+                </p>
+            </div>
+
+            <div class="form-group">
+                <label>Nowy kod QR</label>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="regenerate_qr" name="regenerate_qr">
+                    <label for="regenerate_qr" style="margin: 0;">Wygeneruj nowy kod QR (stary przestanie działać)</label>
+                </div>
+                <p class="helper-text">
+                    Po wygenerowaniu nowego kodu QR wszystkie poprzednie wydrukowane kody dla tego użytkownika
+                    nie będą już akceptowane przez system.
+                </p>
+            </div>
+
+            <div class="buttons">
+                <button type="submit" class="btn btn-primary">Zapisz zmiany</button>
+                <a href="{{ url_for('base.list_users') }}" class="btn btn-secondary">Anuluj</a>
+            </div>
+        </form>
+
+        <div class="qr-preview">
+            <p class="helper-text">Aktualny kod QR:</p>
+            <img src="{{ url_for('base.get_qr_code', user_id=user.id) }}" alt="Aktualny kod QR">
+        </div>
+    </div>
+</body>
+</html>
+

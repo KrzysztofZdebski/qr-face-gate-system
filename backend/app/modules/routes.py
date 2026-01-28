@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, send_file, current_app, session, redirect, url_for
+from flask import Blueprint, render_template, request, jsonify, send_file, current_app, session, redirect, url_for, flash
 import io
 import base64
 import json
@@ -7,6 +7,8 @@ import face_recognition
 import os
 import hashlib
 import stat
+import secrets
+import string
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 from db.db import db
@@ -29,6 +31,17 @@ except ImportError:
 
 qrCodeController = QRCodeController()
 base_bp = Blueprint("base", __name__)
+
+
+def generate_unique_qr_code():
+    """Generate a unique, non‑sequential QR code payload for a user."""
+    alphabet = string.ascii_letters + string.digits
+    for _ in range(20):
+        code = ''.join(secrets.choice(alphabet) for _ in range(16))
+        if not User.query.filter_by(qr_code_data=code).first():
+            return code
+    # Extremely unlikely fallback
+    raise RuntimeError("Unable to generate unique QR code value")
 
 def require_admin():
     """Helper function to check if user is logged in as admin"""
@@ -120,63 +133,54 @@ def add_user():
         return render_template('add_user.html')
     
     if 'name' not in request.form or 'face_image' not in request.files:
-        return jsonify({'error': 'Name and face image are required'}), 400
+        flash('Name and face image are required', 'error')
+        return redirect(url_for('base.add_user'))
     
     name = request.form['name']
     face_image = request.files['face_image']
     
     if face_image.filename == '':
-        return jsonify({'error': 'No image file provided'}), 400
+        flash('No image file provided', 'error')
+        return redirect(url_for('base.add_user'))
     
-    # Read and process the image
-    image = face_recognition.load_image_file(face_image)
-    face_encodings = face_recognition.face_encodings(image)
-    
-    if len(face_encodings) == 0:
-        return jsonify({'error': 'No face detected in the image'}), 400
-    
-    if len(face_encodings) > 1:
-        return jsonify({'error': 'Multiple faces detected. Please provide an image with only one face'}), 400
-    
-    # Get the first (and only) face encoding
-    face_encoding = face_encodings[0]
-    
-    # Create new user with temporary qr_code_data
-    # We'll update it with the actual ID after we get it
-    new_user = User(
-        name=name, 
-        face_encoding=json.dumps(face_encoding.tolist()),
-        qr_code_data="temp"  # Temporary value, will be updated below
-    )
-    db.session.add(new_user)
-    db.session.flush()  # Get the user ID
-    
-    # Generate QR code with user ID
-    new_user.qr_code_data = str(new_user.id)
-    db.session.commit()
-    
-    # Generate QR code image
-    qr_img = qrCodeController.generate_qr_code(new_user.id)
-    
-    # Convert QR code to base64 for display
-    img_buffer = io.BytesIO()
-    qr_img.save(img_buffer, format='PNG')
-    img_buffer.seek(0)
-    qr_base64 = base64.b64encode(img_buffer.getvalue()).decode()
-    
-    return jsonify({
-        'success': True,
-        'user_id': new_user.id,
-        'name': new_user.name,
-        'qr_code': f'data:image/png;base64,{qr_base64}'
-    })
+    try:
+        # Read and process the image
+        image = face_recognition.load_image_file(face_image)
+        face_encodings = face_recognition.face_encodings(image)
+        
+        if len(face_encodings) == 0:
+            flash('No face detected in the image', 'error')
+            return redirect(url_for('base.add_user'))
+        
+        if len(face_encodings) > 1:
+            flash('Multiple faces detected. Please provide an image with only one face', 'error')
+            return redirect(url_for('base.add_user'))
+        
+        # Get the first (and only) face encoding
+        face_encoding = face_encodings[0]
+        
+        # Create new user with secure random QR payload
+        qr_payload = generate_unique_qr_code()
+        new_user = User(
+            name=name,
+            face_encoding=json.dumps(face_encoding.tolist()),
+            qr_code_data=qr_payload
+        )
+        db.session.add(new_user)
+        db.session.commit()
+        
+        flash(f'User {new_user.name} created successfully!', 'success')
+        return redirect(url_for('base.list_users'))
+    except Exception as e:
+        flash(f'Error creating user: {str(e)}', 'error')
+        return redirect(url_for('base.add_user'))
 
 
 @base_bp.route('/qr_code/<int:user_id>')
 def get_qr_code(user_id):
     """Get QR code image for a user"""
     user = User.query.get_or_404(user_id)
-    qr_img = qrCodeController.generate_qr_code(user.id)
+    qr_img = qrCodeController.generate_qr_code(user.qr_code_data)
     
     img_buffer = io.BytesIO()
     qr_img.save(img_buffer, format='PNG')
@@ -537,6 +541,54 @@ def user_report(user_id):
     )
 
 
+@base_bp.route('/admin/user/<int:user_id>/edit', methods=['GET', 'POST'])
+def edit_user(user_id):
+    """Edit user name and optionally regenerate QR code"""
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
+
+    user = User.query.get_or_404(user_id)
+
+    if request.method == 'POST':
+        new_name = request.form.get('name', '').strip()
+        regenerate = request.form.get('regenerate_qr') == 'on'
+        new_face_image = request.files.get('new_face_image')
+
+        # Optional: update face image / encoding
+        if new_face_image and new_face_image.filename:
+            try:
+                image = face_recognition.load_image_file(new_face_image)
+                face_encodings = face_recognition.face_encodings(image)
+
+                if len(face_encodings) == 0:
+                    error = 'No face detected in the new image'
+                    return render_template('edit_user.html', user=user, error=error)
+                if len(face_encodings) > 1:
+                    error = 'Multiple faces detected. Please upload an image with only one face'
+                    return render_template('edit_user.html', user=user, error=error)
+
+                new_encoding = face_encodings[0]
+                user.face_encoding = json.dumps(new_encoding.tolist())
+            except Exception as e:
+                error = f'Error processing new face image: {str(e)}'
+                return render_template('edit_user.html', user=user, error=error)
+
+        # Update name
+        if new_name:
+            user.name = new_name
+
+        # Optionally regenerate QR payload (old QR codes stop working)
+        if regenerate:
+            user.qr_code_data = generate_unique_qr_code()
+
+        db.session.commit()
+
+        return redirect(url_for('base.list_users'))
+
+    return render_template('edit_user.html', user=user)
+
+
 @base_bp.route('/admin/user/<int:user_id>/report/pdf')
 def user_report_pdf(user_id):
     """Download PDF report with all entry attempts for a specific user"""
@@ -691,5 +743,5 @@ def delete_user(user_id):
     db.session.delete(user)
     db.session.commit()
     
-    return jsonify({'success': True, 'message': f'User {user.name} deleted successfully'})
+    return redirect(url_for('base.list_users'))
 
