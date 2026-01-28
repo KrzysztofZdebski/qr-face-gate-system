@@ -110,3 +110,66 @@ h1 {
 .btn-danger:hover {
     background: #c82333;
 }
+
+.btn-warning {
+    background: #ffc107;
+    color: #333;
+}
+
+.btn-warning:hover {
+    background: #e0a800;
+}
+
+.btn-primary {
+    background: #667eea;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #5568d3;
+}
+
+.status-cell {
+    font-weight: 500;
+}
+
+.badge {
+    display: inline-block;
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 0.85em;
+    font-weight: 600;
+    margin-right: 10px;
+}
+
+.badge-success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.badge-danger {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.freeze-reason {
+    font-size: 0.8em;
+    color: #666;
+    margin-top: 5px;
+    font-style: italic;
+}
+
+.frozen-row {
+    background: #fff5f5;
+}
+
+.frozen-row:hover {
+    background: #ffe8e8;
+}
+
+.actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
